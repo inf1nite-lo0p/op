@@ -1,0 +1,79 @@
+version: 2
+
+project_name: op
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: op-bin
+    main: ./cmd/op-bin
+    binary: op-bin
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: op-bin
+    formats: [tar.gz]
+    # GoReleaser's default template, tweaked to use uname-friendly arch names.
+    # Yields e.g. `op_0.1.0_linux_x86_64.tar.gz` so the install script can
+    # construct the URL with just `uname -s` and `uname -m`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: inf1nite-lo0p
+    name: op
+  draft: false
+  prerelease: auto
+  header: |
+    ## op {{ .Tag }}
+
+    Fast TUI for switching to git projects (and worktrees) from a fresh shell.
+
+    ### Install
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/inf1nite-lo0p/op/main/install.sh | sh
+    ```
+
+    Or download the binary for your platform below and follow the README.

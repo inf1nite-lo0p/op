@@ -51,10 +51,22 @@ Type `op`, fuzzy-find a project, hit Enter — your shell `cd`s into it. Sub-10m
 
 ## Install
 
-Two steps — same pattern as `zoxide`, `starship`, `direnv`:
+### One-liner (no Go required)
+
+Pre-built binaries for Linux and macOS (x86_64 + arm64):
 
 ```sh
-# 1. Install the binary (Go 1.24+)
+curl -fsSL https://raw.githubusercontent.com/inf1nite-lo0p/op/main/install.sh | sh
+```
+
+The installer auto-detects your OS/arch, downloads the latest release into `~/.local/bin`, warns if that directory isn't on your `PATH`, and prints the one-line `eval` you need to add to your rc file. Override the install location with `INSTALL_DIR=/somewhere/else sh install.sh`.
+
+### With Go
+
+If you have Go 1.24+ already, two steps — same pattern as `zoxide`, `starship`, `direnv`:
+
+```sh
+# 1. Install the binary
 go install github.com/inf1nite-lo0p/op/cmd/op-bin@latest
 
 # 2. Wire up the shell function — bash:
