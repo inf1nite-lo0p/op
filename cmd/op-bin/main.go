@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -112,20 +113,14 @@ func runPick(ctx context.Context) error {
 	}
 
 	// First-run path: no cache, nothing to render. Scan synchronously
-	// (with a "scanning…" message on stderr) so the picker has rows.
+	// so the picker has rows. Show a live spinner + counter on stderr
+	// so the user has feedback for what can be a multi-second scan
+	// (especially with $HOME as the only root).
 	if !ok {
-		fmt.Fprintln(os.Stderr, "op: first run — scanning…")
-		t := time.Now()
-		projects, scanErr := scanFromConfig(ctx, cfg, nil)
+		entries, scanErr := firstRunScan(ctx, cfg)
 		if scanErr != nil {
 			return scanErr
 		}
-		entries := projectsToEntries(projects)
-		if err := cache.Save(entries); err != nil {
-			fmt.Fprintf(os.Stderr, "op: cache save: %v\n", err)
-		}
-		fmt.Fprintf(os.Stderr, "op: scanned %d projects in %s\n",
-			len(entries), time.Since(t).Round(time.Millisecond))
 		cached = entries
 	}
 
@@ -502,6 +497,99 @@ func ensureConfigured(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// firstRunScan does the synchronous "no cache yet, build one before
+// opening the picker" scan with a live spinner + project counter on
+// stderr so the user sees progress instead of a frozen "scanning…"
+// line. Falls back to plain start/finish lines when stderr isn't a
+// terminal (CI, piped invocations).
+func firstRunScan(ctx context.Context, cfg config.Config) ([]cache.Entry, error) {
+	const (
+		ansiCyan      = "\x1b[36m"
+		ansiGreen     = "\x1b[32m"
+		ansiBold      = "\x1b[1m"
+		ansiDim       = "\x1b[2m"
+		ansiReset     = "\x1b[0m"
+		ansiClearLine = "\r\x1b[K"
+	)
+
+	tty := stderrIsTTY()
+
+	if tty {
+		fmt.Fprintf(os.Stderr, "\n%s%sFirst-time scan in progress…%s\n\n",
+			ansiBold, ansiCyan, ansiReset)
+	} else {
+		fmt.Fprintln(os.Stderr, "op: first run — scanning…")
+	}
+
+	var found atomic.Int64
+	doneCh := make(chan struct{})
+
+	if tty {
+		go func() {
+			// Braille spinner — same family the picker uses.
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-doneCh:
+					return
+				case <-ticker.C:
+					n := found.Load()
+					fmt.Fprintf(os.Stderr,
+						"%s  %s%s%s Scanning your projects… %s%d%s found",
+						ansiClearLine, ansiCyan, frames[i%len(frames)], ansiReset,
+						ansiBold, n, ansiReset)
+					i++
+				}
+			}
+		}()
+	}
+
+	t := time.Now()
+	projects, scanErr := scanFromConfig(ctx, cfg, func() { found.Add(1) })
+	elapsed := time.Since(t).Round(time.Millisecond)
+	close(doneCh)
+	if tty {
+		// Tiny pause to make sure the spinner goroutine has stopped
+		// writing before we overwrite its line.
+		time.Sleep(20 * time.Millisecond)
+		fmt.Fprint(os.Stderr, ansiClearLine)
+	}
+
+	if scanErr != nil {
+		return nil, scanErr
+	}
+
+	entries := projectsToEntries(projects)
+	if err := cache.Save(entries); err != nil {
+		fmt.Fprintf(os.Stderr, "op: cache save: %v\n", err)
+	}
+
+	if tty {
+		fmt.Fprintf(os.Stderr,
+			"  %s✓%s Found %s%d%s projects in %s%s%s.\n\n",
+			ansiGreen, ansiReset,
+			ansiBold, len(entries), ansiReset,
+			ansiDim, elapsed, ansiReset)
+	} else {
+		fmt.Fprintf(os.Stderr, "op: scanned %d projects in %s\n", len(entries), elapsed)
+	}
+	return entries, nil
+}
+
+// stderrIsTTY reports whether stderr is connected to an interactive
+// terminal — used to decide whether to animate progress output. The
+// shell shim never captures stderr, so this is a reliable signal.
+func stderrIsTTY() bool {
+	fi, err := os.Stderr.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
 // scanFromConfig is the shared "config → scanner.Options → run scan"
