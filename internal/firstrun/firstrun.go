@@ -113,7 +113,7 @@ type model struct {
 
 func newModel() model {
 	ti := textinput.New()
-	ti.Placeholder = "~/code, ~/work, …  or blank for $HOME"
+	ti.Placeholder = "~/code, /mnt/d/projects, …  or blank for $HOME"
 	ti.Prompt = "❯ "
 	ti.PromptStyle = promptStyle
 	ti.TextStyle = textStyle
@@ -166,13 +166,19 @@ func (m model) View() string {
 	b.WriteString(headingStyle.Render("Where do you keep your git projects?"))
 	b.WriteString("\n\n")
 	b.WriteString("  ")
-	b.WriteString(dimStyle.Render("Comma-separated paths, "))
+	b.WriteString(dimStyle.Render("Comma-separated paths. "))
 	b.WriteString(codeStyle.Render("~"))
 	b.WriteString(dimStyle.Render(" expands to "))
 	b.WriteString(codeStyle.Render("$HOME"))
-	b.WriteString(dimStyle.Render(". Leave blank to scan "))
+	b.WriteString(dimStyle.Render("; absolute paths work too — other drives "))
+	b.WriteString(codeStyle.Render("/mnt/d"))
+	b.WriteString(dimStyle.Render(", "))
+	b.WriteString(codeStyle.Render("/Volumes/X"))
+	b.WriteString(dimStyle.Render(", network mounts, etc."))
+	b.WriteString("\n  ")
+	b.WriteString(dimStyle.Render("Leave blank to scan "))
 	b.WriteString(codeStyle.Render("$HOME"))
-	b.WriteString(dimStyle.Render("."))
+	b.WriteString(dimStyle.Render(" only."))
 	b.WriteString("\n\n  ")
 	b.WriteString(m.input.View())
 	b.WriteString("\n\n  ")

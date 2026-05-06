@@ -396,8 +396,23 @@ func (m model) View() string {
 	b.WriteString("\n\n")
 
 	if len(m.entries) == 0 {
-		b.WriteString("\n")
-		b.WriteString(dimStyle.Render("no projects yet — try `op refresh`"))
+		b.WriteString("\n  ")
+		b.WriteString(mutedTitleStyle.Render("No projects found in your configured roots."))
+		b.WriteString("\n\n  ")
+		b.WriteString(dimStyle.Render("Add a root        "))
+		b.WriteString(keyStyle.Render("op add /path/to/projects"))
+		b.WriteString("\n  ")
+		b.WriteString(dimStyle.Render("Edit configuration  "))
+		b.WriteString(keyStyle.Render("op config edit"))
+		b.WriteString("\n  ")
+		b.WriteString(dimStyle.Render("Re-scan now         "))
+		b.WriteString(keyStyle.Render("ctrl+r"))
+		b.WriteString("\n\n  ")
+		b.WriteString(dimStyle.Render("Tip: roots can be on any drive — "))
+		b.WriteString(keyStyle.Render("/mnt/d/code"))
+		b.WriteString(dimStyle.Render(", "))
+		b.WriteString(keyStyle.Render("/Volumes/X"))
+		b.WriteString(dimStyle.Render(", etc."))
 		b.WriteString("\n")
 	}
 
