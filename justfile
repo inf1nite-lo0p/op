@@ -41,9 +41,20 @@ uninstall:
     rm -f "{{install_dir}}/op-bin"
 
 # Render the README demo GIF from assets/demo.tape.
-# Requires vhs, ttyd, and ffmpeg on PATH.
+# Requires vhs, ttyd, and ffmpeg on PATH. Runs the seed script first
+# so the recording is against a controlled set of fake projects (in
+# ./.demo/) — not your real ~/projects.
 demo: build
+    bash assets/seed-demo.sh "$PWD/.demo"
     PATH="$PWD/bin:$PATH" vhs assets/demo.tape
+
+# Just the seeding step; useful for poking at the picker against the
+# fake project tree without re-rendering the GIF.
+demo-seed: build
+    bash assets/seed-demo.sh "$PWD/.demo"
+    @echo
+    @echo "Try it:"
+    @echo "  XDG_CONFIG_HOME=$PWD/.demo/config XDG_CACHE_HOME=$PWD/.demo/cache ./bin/op-bin"
 
 # Tidy module deps.
 tidy:

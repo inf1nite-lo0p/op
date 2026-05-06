@@ -321,7 +321,18 @@ Then render:
 just demo                # → assets/demo.gif
 ```
 
-The `just demo` recipe builds `op-bin` first and prepends `./bin` to `PATH` so the tape's `op-bin shell-init` call resolves to your in-repo build, not whatever's installed system-wide.
+`just demo` does three things:
+
+1. **Builds** `op-bin` into `./bin/`.
+2. **Seeds** a fake project tree at `./.demo/projects/` (gitignored) — fictional `acme` workspace with main repos and `.claude/worktrees/` linked worktrees, plus a `personal/` and `playground/` namespace. Each repo gets a controlled HEAD mtime so the picker's "last touched" column shows realistic variety.
+3. **Records** with VHS, scoping op via `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` to the seeded tree only — the demo never touches your real `~/projects`.
+
+If you just want to poke at the picker against the seeded tree without re-recording:
+
+```sh
+just demo-seed
+XDG_CONFIG_HOME=$PWD/.demo/config XDG_CACHE_HOME=$PWD/.demo/cache ./bin/op-bin
+```
 
 ---
 
