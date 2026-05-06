@@ -34,13 +34,36 @@ type Config struct {
 	VimMode bool `toml:"vim_mode"`
 }
 
-// Defaults returns the config we write on first run.
+// Defaults returns the config we write on first run. Aimed at "works
+// for most setups out of the box" — non-existent roots are silently
+// skipped during the walk, so listing several common directory
+// conventions costs nothing for users that only have one of them.
 func Defaults() Config {
 	return Config{
-		Roots: []string{"~/projects", "~/playground"},
+		Roots: []string{
+			"~/code",
+			"~/projects",
+			"~/src",
+			"~/work",
+			"~/repos",
+		},
 		Prune: []string{
-			"node_modules", ".next", "vendor", "target",
-			"dist", "build", ".venv", "__pycache__", ".turbo",
+			// Package managers / vendored deps.
+			"node_modules", "bower_components",
+			"vendor",
+			"Pods",
+			// Language build outputs.
+			"target", // Rust, Java/Maven
+			"build", "dist", "out",
+			"bin", "obj", // .NET, Go binaries
+			"coverage",
+			// Python.
+			".venv", "venv", "__pycache__",
+			// JS framework caches / outputs.
+			".next", ".nuxt", ".svelte-kit", ".astro",
+			".turbo", ".cache", ".parcel-cache",
+			// Infra.
+			".terraform", "cdk.out",
 		},
 	}
 }
