@@ -34,19 +34,14 @@ type Config struct {
 	VimMode bool `toml:"vim_mode"`
 }
 
-// Defaults returns the config we write on first run. Aimed at "works
-// for most setups out of the box" — non-existent roots are silently
-// skipped during the walk, so listing several common directory
-// conventions costs nothing for users that only have one of them.
+// Defaults returns the config we write on first run when the user
+// either skips the first-run prompt or runs op non-interactively.
+// We default to the user's home dir (`~`) as the single root: it
+// works for everyone regardless of their layout convention, and
+// the prune list keeps the walk fast despite the wide net.
 func Defaults() Config {
 	return Config{
-		Roots: []string{
-			"~/code",
-			"~/projects",
-			"~/src",
-			"~/work",
-			"~/repos",
-		},
+		Roots: []string{"~"},
 		Prune: []string{
 			// Package managers / vendored deps.
 			"node_modules", "bower_components",

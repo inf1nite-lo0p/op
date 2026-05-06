@@ -124,10 +124,30 @@ op config edit           # open the config file in $EDITOR
 
 ## Configuration
 
-Lives at `~/.config/op/config.toml`. First run writes the defaults:
+### First run
+
+The first time you run `op`, you'll see a small bubbletea form asking where you keep your git projects:
+
+```
+[ Welcome to op ]
+
+  Where do you keep your git projects?
+
+  Comma-separated paths, ~ expands to $HOME. Leave blank to scan $HOME.
+
+  ❯ ~/code, ~/work_
+
+  enter save · ctrl+c skip
+```
+
+Type a comma-separated list (e.g. `~/code, ~/work`), press Enter, and `op` writes your config and continues to the picker. Press Enter on a blank field and it scans `$HOME` — works for any layout, just slightly slower.
+
+### Config file
+
+Lives at `~/.config/op/config.toml`. After first-run looks something like:
 
 ```toml
-roots = ["~/code", "~/projects", "~/src", "~/work", "~/repos"]
+roots = ["~/code", "~/work"]
 
 prune = [
   # Package managers / vendored deps
@@ -146,13 +166,13 @@ prune = [
 vim_mode = false
 ```
 
-| Key        | Type          | Default                                    | Description                                                                                                             |
-| ---------- | ------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `roots`    | list of paths | `~/code`, `~/projects`, `~/src`, `~/work`, `~/repos` | Recursively scanned for git working trees. Leading `~` expands to `$HOME`. Roots that don't exist are silently skipped, so listing several conventions is fine. |
-| `prune`    | list of names | (see above)                                | Directory base names to skip during the walk. Exact match — no `**` globs. `.git/` is always skipped automatically.     |
-| `vim_mode` | bool          | `false`                                    | When `true`, the search input becomes a vim-style modal editor. `Esc` enters normal mode and `Ctrl+C` is the only exit. |
+| Key        | Type          | Default     | Description                                                                                                                                                  |
+| ---------- | ------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `roots`    | list of paths | `~`         | Recursively scanned for git working trees. Leading `~` expands to `$HOME`. Non-existent roots are silently skipped, so listing several conventions is fine. |
+| `prune`    | list of names | (see above) | Directory base names to skip during the walk. Exact match — no `**` globs. `.git/` is always skipped automatically.                                          |
+| `vim_mode` | bool          | `false`     | When `true`, the search input becomes a vim-style modal editor. `Esc` enters normal mode and `Ctrl+C` is the only exit.                                      |
 
-Custom roots? Add one with `op add /path/to/somewhere` (it'll be appended to your config), or edit the file directly with `op config edit`.
+Add a root later with `op add /path/to/somewhere` (appended to your config), or edit the file directly with `op config edit`.
 
 Quick edits without opening the file:
 

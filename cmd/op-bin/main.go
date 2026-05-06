@@ -19,6 +19,7 @@ import (
 
 	"github.com/inf1nite-lo0p/op/internal/cache"
 	"github.com/inf1nite-lo0p/op/internal/config"
+	"github.com/inf1nite-lo0p/op/internal/firstrun"
 	"github.com/inf1nite-lo0p/op/internal/scanner"
 	"github.com/inf1nite-lo0p/op/internal/tui"
 )
@@ -90,6 +91,9 @@ Usage:
 // runPick is the default mode: render the cached rows immediately and
 // rescan in the background. Anything blocking here costs every launch.
 func runPick(ctx context.Context) error {
+	if err := ensureConfigured(ctx); err != nil {
+		return err
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		// Don't fail the picker for a config error — log to stderr,
@@ -150,6 +154,9 @@ func runPick(ctx context.Context) error {
 }
 
 func runRefresh(ctx context.Context) error {
+	if err := ensureConfigured(ctx); err != nil {
+		return err
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -439,6 +446,38 @@ func runConfigEdit() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// ensureConfigured runs the first-run prompt the very first time op
+// is launched (no config file yet) and writes the user's chosen
+// config. After this returns successfully, config.Load is guaranteed
+// to find a file on disk. Subcommands that don't actually scan
+// (config/doctor/list/roots) skip this check and rely on Load's
+// auto-write fallback.
+func ensureConfigured(ctx context.Context) error {
+	p, err := config.Path()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(p); err == nil {
+		// Config already exists — nothing to do.
+		return nil
+	}
+
+	cfg, err := firstrun.Run(ctx)
+	if err != nil {
+		if errors.Is(err, firstrun.ErrCancelled) {
+			// User Ctrl+C'd the prompt — exit quietly without
+			// writing anything; same exit semantics as cancelling
+			// the picker itself.
+			return tui.ErrCancelled
+		}
+		return err
+	}
+	if err := config.Save(cfg); err != nil {
+		return err
+	}
+	return nil
 }
 
 // scanFromConfig is the shared "config → scanner.Options → run scan"
