@@ -117,7 +117,7 @@ func runPick(ctx context.Context) error {
 	// so the user has feedback for what can be a multi-second scan
 	// (especially with $HOME as the only root).
 	if !ok {
-		entries, scanErr := firstRunScan(ctx, cfg)
+		entries, scanErr := progressScan(ctx, cfg, "First-time scan in progress…")
 		if scanErr != nil {
 			return scanErr
 		}
@@ -160,18 +160,8 @@ func runRefresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	t := time.Now()
-	projects, err := scanFromConfig(ctx, cfg, nil)
-	if err != nil {
-		return err
-	}
-	entries := projectsToEntries(projects)
-	if err := cache.Save(entries); err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stderr, "scanned %d projects in %s\n",
-		len(entries), time.Since(t).Round(time.Millisecond))
-	return nil
+	_, err = progressScan(ctx, cfg, "Refreshing your project list…")
+	return err
 }
 
 func runList() error {
@@ -499,12 +489,16 @@ func ensureConfigured(ctx context.Context) error {
 	return nil
 }
 
-// firstRunScan does the synchronous "no cache yet, build one before
-// opening the picker" scan with a live spinner + project counter on
-// stderr so the user sees progress instead of a frozen "scanning…"
-// line. Falls back to plain start/finish lines when stderr isn't a
-// terminal (CI, piped invocations).
-func firstRunScan(ctx context.Context, cfg config.Config) ([]cache.Entry, error) {
+// progressScan performs a scanFromConfig call with a live spinner +
+// project counter on stderr so the user sees real-time feedback for
+// what can be a multi-second walk. Used by both the first-run cold
+// scan inside runPick and `op refresh`. Non-TTY stderr (CI, piped
+// invocations) falls back to plain start/finish lines so logs don't
+// fill up with escape sequences.
+//
+// The banner is the headline shown above the spinner (e.g. "First-
+// time scan in progress…" or "Refreshing your project list…").
+func progressScan(ctx context.Context, cfg config.Config, banner string) ([]cache.Entry, error) {
 	const (
 		ansiCyan      = "\x1b[36m"
 		ansiGreen     = "\x1b[32m"
@@ -517,10 +511,9 @@ func firstRunScan(ctx context.Context, cfg config.Config) ([]cache.Entry, error)
 	tty := stderrIsTTY()
 
 	if tty {
-		fmt.Fprintf(os.Stderr, "\n%s%sFirst-time scan in progress…%s\n\n",
-			ansiBold, ansiCyan, ansiReset)
+		fmt.Fprintf(os.Stderr, "\n%s%s%s%s\n\n", ansiBold, ansiCyan, banner, ansiReset)
 	} else {
-		fmt.Fprintln(os.Stderr, "op: first run — scanning…")
+		fmt.Fprintln(os.Stderr, "op: "+strings.ToLower(banner))
 	}
 
 	var found atomic.Int64
