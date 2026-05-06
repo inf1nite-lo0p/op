@@ -40,6 +40,11 @@ install: build
 uninstall:
     rm -f "{{install_dir}}/op-bin"
 
+# Render the README demo GIF from assets/demo.tape.
+# Requires vhs, ttyd, and ffmpeg on PATH.
+demo: build
+    PATH="$PWD/bin:$PATH" vhs assets/demo.tape
+
 # Tidy module deps.
 tidy:
     go mod tidy

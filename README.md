@@ -24,6 +24,11 @@ Type `op`, fuzzy-find a project, hit Enter — your shell `cd`s into it. Sub-10m
 
 ## Demo
 
+![op demo](assets/demo.gif)
+
+<details>
+<summary>Static preview</summary>
+
 ```
 [ Open Project ]
 
@@ -44,8 +49,10 @@ Type `op`, fuzzy-find a project, hit Enter — your shell `cd`s into it. Sub-10m
      ●  api-docs                                                          repo · 3d ago
         ~/code/acme/api-docs
 
-  17/972 · ↑↓/ctrl+jk select · enter pick · esc normal · ctrl+c exit · ctrl+r rescan
+  17 of 972 · NORMAL · hjkl move · w/b/e word · gg/G list top/end · cw/dw change/del · cc/dd clear · i/a insert · enter pick
 ```
+
+</details>
 
 ---
 
@@ -292,6 +299,29 @@ just clean          # rm -rf bin/
 ```
 
 Tests cover every package. The `tui` package has focused tests for search ranking (multi-token, recency, home-prefix stripping, two-way splits) and vim-mode commands (`cc`, `cw`, `dw`, `D`, `r`, `s`, `gg`/`G`).
+
+### Rendering the demo GIF
+
+The README's demo image is generated from [`assets/demo.tape`](assets/demo.tape) using [VHS](https://github.com/charmbracelet/vhs) — a declarative terminal-recording tool from Charm. Tape files are reproducible and live in git; commit a fresh `assets/demo.gif` whenever the picker's look changes.
+
+Install VHS + its runtime deps once:
+
+```sh
+# macOS
+brew install vhs ttyd ffmpeg
+
+# Linux (Debian/Ubuntu — ttyd may need building from source)
+go install github.com/charmbracelet/vhs@latest
+sudo apt install ttyd ffmpeg
+```
+
+Then render:
+
+```sh
+just demo                # → assets/demo.gif
+```
+
+The `just demo` recipe builds `op-bin` first and prepends `./bin` to `PATH` so the tape's `op-bin shell-init` call resolves to your in-repo build, not whatever's installed system-wide.
 
 ---
 
