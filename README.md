@@ -295,6 +295,26 @@ Tests cover every package. The `tui` package has focused tests for search rankin
 
 ---
 
+## Uninstall
+
+```sh
+# 1. Remove the binary
+rm ~/.local/bin/op-bin
+
+# 2. Remove the shell-init line from your rc file
+#    — bash:
+sed -i.bak '/op-bin shell-init/d' ~/.bashrc
+#    — zsh:
+sed -i.bak '/op-bin shell-init/d' ~/.zshrc
+
+# 3. (Optional) drop the config + cache
+rm -rf ~/.config/op ~/.cache/op
+```
+
+If you installed with `go install`, the binary lives in `$(go env GOBIN)` (typically `~/go/bin/op-bin`) — adjust step 1 accordingly. If you installed with `just install`, `just uninstall` from the repo does step 1 for you.
+
+Open a new shell after editing your rc — the `op` function will be gone.
+
 ## Acknowledgements
 
 Built on the [Charm](https://charm.sh/) ecosystem: [bubbletea](https://github.com/charmbracelet/bubbletea), [bubbles](https://github.com/charmbracelet/bubbles), [lipgloss](https://github.com/charmbracelet/lipgloss). TOML parsing by [go-toml/v2](https://github.com/pelletier/go-toml). Inspired by the look and feel of Claude Code's `/resume` picker.
