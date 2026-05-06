@@ -127,6 +127,29 @@ prune = ["node_modules", "vendor", "target", "dist", "build"]
 vim_mode = false
 TOML
 
+# ----- bash setup snippet for the demo recording ------------------
+#
+# vhs's tape parser fights with `\$` inside `Type "…"`, so the demo
+# tape sources this file instead of inlining the bash. Two things
+# happen here:
+#
+#   1. `bind 'set show-mode-in-prompt off'` removes bash's readline
+#      `@` indicator (default for emacs mode) that would otherwise
+#      sit in front of every prompt in the GIF.
+#   2. PROMPT_COMMAND rebuilds PS1 on every prompt so the shown cwd
+#      is home-relative — we don't have to follow the picker with a
+#      separate `pwd` line just to prove the cd happened.
+
+cat >"$TARGET/promptrc" <<'EOF'
+bind 'set show-mode-in-prompt off' 2>/dev/null
+# `${PWD#$HOME}` strips the HOME prefix from PWD (giving "/code/acme/api"
+# from "/some/path/home/code/acme/api"); prepending `~` reconstructs a
+# clean home-relative cwd. The substitute-prefix form
+# `${PWD/#$HOME/~}` would be tidier but doesn't fire reliably in this
+# bash build.
+PROMPT_COMMAND='PS1="~${PWD#$HOME} $ "'
+EOF
+
 # ----- pre-warm cache so the demo opens instantly ------------------
 #
 # Important: we have to set HOME for this so the cached paths are

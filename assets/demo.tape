@@ -32,21 +32,27 @@ Set Padding    20
 # .demo/ tree and pre-warms the cache.
 
 Hide
-Type 'export HOME="$PWD/.demo/home"'
+# Pin the absolute path of the demo dir BEFORE we cd anywhere — the
+# rc file lives under it and we don't want $PWD-relative lookups to
+# break once we cd into the fake $HOME.
+Type 'OP_DEMO="$PWD/.demo"'
 Enter
-Type 'export XDG_CONFIG_HOME="$PWD/.demo/config"'
+# Source the prompt rc the seed script wrote for us. Two effects:
+#   - turns off bash's readline mode-in-prompt (`@` indicator)
+#   - sets PROMPT_COMMAND so PS1 always shows the home-relative cwd,
+#     so post-pick the prompt itself proves the `cd` worked.
+Type 'source "$OP_DEMO/promptrc"'
 Enter
-Type 'export XDG_CACHE_HOME="$PWD/.demo/cache"'
+# Scope op to the seeded fake home + xdg dirs so paths render as
+# `~/code/acme/...` and the recorder's real config / cache stay
+# untouched. seed-demo.sh laid all of these down.
+Type 'export HOME="$OP_DEMO/home"'
+Enter
+Type 'export XDG_CONFIG_HOME="$OP_DEMO/config"'
+Enter
+Type 'export XDG_CACHE_HOME="$OP_DEMO/cache"'
 Enter
 Type 'cd "$HOME"'
-Enter
-# A simple prompt that doesn't leak hostname/username. We can't
-# rely on PS1 escapes (\w etc.) inside vhs's bash — the prompt
-# expansion runs once per render and the GIF tooling doesn't pick
-# up the change cleanly. Using a plain literal prompt sidesteps it
-# entirely; the home-relative cwd is shown via an explicit echo
-# after the pick (see the bottom of the tape).
-Type "export PS1='$ '"
 Enter
 Type 'eval "$(op-bin shell-init bash)"'
 Enter
@@ -80,14 +86,9 @@ Sleep 600ms
 
 # ----- act 5: pick + show we cd'd ----------------------------------
 #
-# After Enter the shell `cd`s into the picked worktree. We print a
-# home-relative cwd via parameter expansion so the GIF doesn't show
-# the recorder's absolute path layout.
+# After Enter the shell `cd`s into the picked worktree. PS1 (set by
+# .demo/promptrc) automatically shows the home-relative cwd, so the
+# prompt itself is the proof — no need to run pwd.
 
 Enter
-Sleep 600ms
-# `pwd | sed s/$HOME/~/` is just a portable way to print the
-# home-relative cwd without exposing the recorder's absolute path.
-Type 'pwd | sed "s|^$HOME|~|"'
-Enter
-Sleep 2.0s
+Sleep 2.5s
