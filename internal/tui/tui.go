@@ -439,7 +439,18 @@ func (m model) renderFooter() string {
 		)
 	}
 
-	stats := fmt.Sprintf("%d/%d", len(m.matched), len(m.entries))
+	// Stats label: plain English when nothing's filtered ("994 projects"),
+	// "X of Y" when a filter is active. The old "143/994" format read
+	// like a fraction and made people wonder what the slash meant.
+	var stats string
+	switch {
+	case len(m.entries) == 0:
+		stats = "no projects"
+	case len(m.matched) == len(m.entries):
+		stats = fmt.Sprintf("%d projects", len(m.entries))
+	default:
+		stats = fmt.Sprintf("%d of %d", len(m.matched), len(m.entries))
+	}
 	out := dimStyle.Render(stats) + dimStyle.Render(" · ")
 	if m.mode == modeNormal {
 		out += normalModePromptStyle.Render("NORMAL") + dimStyle.Render(" · ")
