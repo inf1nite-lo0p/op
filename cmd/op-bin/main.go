@@ -21,6 +21,7 @@ import (
 	"github.com/inf1nite-lo0p/op/internal/config"
 	"github.com/inf1nite-lo0p/op/internal/firstrun"
 	"github.com/inf1nite-lo0p/op/internal/scanner"
+	"github.com/inf1nite-lo0p/op/internal/shellinit"
 	"github.com/inf1nite-lo0p/op/internal/tui"
 )
 
@@ -50,6 +51,8 @@ func main() {
 		err = runDoctor(ctx)
 	case "config":
 		err = runConfig(args[1:])
+	case "shell-init":
+		err = runShellInit(args[1:])
 	case "-h", "--help", "help":
 		printUsage(os.Stdout)
 	default:
@@ -84,6 +87,7 @@ Usage:
   op config get <k>  print one config value
   op config set <k> <v>  change a config value (e.g. vim_mode on)
   op config edit     open the config file in $EDITOR
+  op shell-init <shell>  print the shell shim (bash or zsh) — eval into your rc
   op help            show this message
 `)
 }
@@ -446,6 +450,26 @@ func runConfigEdit() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// runShellInit prints the shell shim for the requested shell. The
+// intended usage is `eval "$(op-bin shell-init bash)"` in the user's
+// rc file — same pattern as `zoxide init bash`, `starship init bash`.
+// This is what makes a `go install` setup work without users having
+// to clone the repo for the shell file.
+func runShellInit(args []string) error {
+	shell := "bash"
+	if len(args) > 0 {
+		shell = args[0]
+	}
+	script, err := shellinit.Script(shell)
+	if err != nil {
+		return err
+	}
+	// Pass through to stdout: the user has wrapped this call in an
+	// `eval "$(...)"` so they want stdout content, not stderr.
+	fmt.Print(script)
+	return nil
 }
 
 // ensureConfigured runs the first-run prompt the very first time op

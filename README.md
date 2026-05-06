@@ -51,27 +51,38 @@ Type `op`, fuzzy-find a project, hit Enter — your shell `cd`s into it. Sub-10m
 
 ## Install
 
+Two steps — same pattern as `zoxide`, `starship`, `direnv`:
+
+```sh
+# 1. Install the binary (Go 1.24+)
+go install github.com/inf1nite-lo0p/op/cmd/op-bin@latest
+
+# 2. Wire up the shell function — bash:
+echo 'eval "$(op-bin shell-init bash)"' >> ~/.bashrc
+
+# …or zsh:
+echo 'eval "$(op-bin shell-init zsh)"' >> ~/.zshrc
+```
+
+Open a new shell (or `source` your rc) and you're done — type `op` to launch the picker.
+
+The first time you run it, `op` shows a one-shot prompt asking where you keep your projects (default: scan `$HOME`). After that it's instant on every launch thanks to the on-disk cache.
+
+### Why the shim?
+
+`op` is a shell function, not a plain binary. A child process can't change its parent shell's working directory, so the binary prints the chosen absolute path on stdout and the shim does the `cd`. The `shell-init` subcommand emits that ~20-line shim straight from the embedded source so there's no separate file to install or keep in sync.
+
 ### Build from source
 
-Requires Go 1.24+ and [`just`](https://github.com/casey/just).
+If you want to hack on op or run a pre-release version:
 
 ```sh
 git clone git@github.com:inf1nite-lo0p/op.git
 cd op
-just install
+just install     # builds + installs to ~/.local/bin
 ```
 
-This builds `op-bin` into `~/.local/bin/op-bin` and installs the shell shim to `~/.local/share/op/op.bash`. Override with `INSTALL_DIR` and `SHELL_DIR` env vars if you want to put them somewhere else.
-
-### Wire up the shell shim
-
-Add this to your `~/.bashrc` or `~/.zshrc`:
-
-```sh
-source ~/.local/share/op/op.bash
-```
-
-`op` is implemented as a shell function — a child process can't change the parent shell's working directory, so the binary prints the chosen absolute path and the shim does the `cd`.
+Override the install location with `INSTALL_DIR=/somewhere/else just install`.
 
 ---
 
@@ -90,6 +101,7 @@ op config                # show current settings + edit hints
 op config get <key>      # print one config value
 op config set <key> <v>  # change a config value (e.g. vim_mode on)
 op config edit           # open the config file in $EDITOR
+op shell-init <shell>    # print the shell shim (bash | zsh)
 ```
 
 ### Picker keys (insert mode)

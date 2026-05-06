@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# op shell shim. Source this from your .bashrc / .zshrc:
+# op shell shim. Add this to your ~/.bashrc or ~/.zshrc:
 #
-#   source ~/.local/share/op/op.bash
+#   eval "$(op-bin shell-init bash)"   # or zsh
 #
 # The TUI binary is `op-bin`. We wrap it in a shell function so the
 # picker can `cd` us into the chosen path — a child process can't

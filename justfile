@@ -4,7 +4,6 @@
 
 # Where the binary lands. Override with `INSTALL_DIR=... just install`.
 install_dir := env_var_or_default("INSTALL_DIR", env_var("HOME") + "/.local/bin")
-shell_dir   := env_var_or_default("SHELL_DIR",   env_var("HOME") + "/.local/share/op")
 
 # Default recipe: list available recipes.
 default:
@@ -25,26 +24,21 @@ check:
     test -z "$(gofmt -l .)"
     go test ./...
 
-# Install op-bin into $INSTALL_DIR and the shell shim into $SHELL_DIR.
-# Add `source $SHELL_DIR/op.bash` to your shell rc afterwards.
+# Build from source and install op-bin into $INSTALL_DIR.
+# After install, wire up the shell shim by adding this to your rc:
+#   eval "$(op-bin shell-init bash)"   # or zsh
 install: build
     install -d "{{install_dir}}"
     install -m 0755 bin/op-bin "{{install_dir}}/op-bin"
-    install -d "{{shell_dir}}"
-    install -m 0644 shell/op.bash "{{shell_dir}}/op.bash"
     @echo
-    @echo "Installed:"
-    @echo "  binary: {{install_dir}}/op-bin"
-    @echo "  shim:   {{shell_dir}}/op.bash"
+    @echo "Installed: {{install_dir}}/op-bin"
     @echo
     @echo "Add this to your ~/.bashrc (or ~/.zshrc):"
-    @echo "  source {{shell_dir}}/op.bash"
+    @echo '  eval "$(op-bin shell-init bash)"'
 
-# Remove the installed binary and shim.
+# Remove the installed binary.
 uninstall:
     rm -f "{{install_dir}}/op-bin"
-    rm -f "{{shell_dir}}/op.bash"
-    rmdir "{{shell_dir}}" 2>/dev/null || true
 
 # Tidy module deps.
 tidy:
