@@ -16,7 +16,7 @@ Type `op`, fuzzy-find a project, hit Enter — your shell `cd`s into it. Sub-10m
 - **Worktree-aware** — linked git worktrees are first-class rows, including worktrees nested inside the main repo (e.g. `<repo>/.claude/worktrees/`).
 - **Recursive container repos** — surfaces independent git repos nested inside another repo (e.g. an umbrella workspace whose subfolders are each their own repo). Vendored deps are kept out by the prune list.
 - **Ergonomic ranking** — tier-based scoring beats letters-in-order fuzzy matching for project navigation: name-exact (1500) ≫ name-prefix (1200) ≫ name-contains (1000) ≫ split-2 (800) ≫ branch (500) ≫ path (350) ≫ fuzzy fallback (100). Recency adds up to +200 within a tier so today's repo wins ties over last month's.
-- **Multi-token AND search** — `api auth` finds rows that match both `api` *and* `auth`, so you can drill into the `api` repo's auth-feature worktrees in one query. Two-way splits also work: typing `frontendplatform` matches `acme-platform-frontend` because both halves are substrings.
+- **Multi-token AND search** — `api auth` finds rows that match both `api` _and_ `auth`, so you can drill into the `api` repo's auth-feature worktrees in one query. Two-way splits also work: typing `frontendplatform` matches `acme-platform-frontend` because both halves are substrings.
 - **Vim mode (opt-in)** — full vim-style modal editor in the search input (`hjkl/w/b/e/gg/G/cw/dw/cc/dd/D/C/s/r<x>/i/a/I/A`). Off by default; flip with `op config set vim_mode on`.
 - **Offline-only** — never makes a network call. Works on a plane, in a Docker container, anywhere.
 
@@ -29,13 +29,13 @@ Type `op`, fuzzy-find a project, hit Enter — your shell `cd`s into it. Sub-10m
 
 ❯ api
 
-  ❯  ●  api                                                              repo · 2h ago
+  ❯  ●  api                                                               repo · 2h ago
         ~/code/acme/api
 
-     ↳  feat-auth-jwt-rotation                                       worktree · 1h ago
+     ↳  feat-auth-jwt-rotation                                        worktree · 1h ago
         ~/code/acme/api/.claude/worktrees/feat-auth-jwt-rotation
 
-     ↳  bugfix-login-redirect-loop                                   worktree · 4h ago
+     ↳  bugfix-login-redirect-loop                                    worktree · 4h ago
         ~/code/acme/api/.claude/worktrees/bugfix-login-redirect-loop
 
      ●  api-gateway                                                       repo · 1d ago
@@ -94,29 +94,29 @@ op config edit           # open the config file in $EDITOR
 
 ### Picker keys (insert mode)
 
-| Key                          | Action                                              |
-| ---------------------------- | --------------------------------------------------- |
-| any printable character      | filter (instant)                                    |
-| `↑` `↓` / `Ctrl+P` `Ctrl+N`  | move selection                                      |
-| `Ctrl+J` `Ctrl+K`            | move selection (vim flavour)                        |
-| `Ctrl+U` `Ctrl+D`            | page up / page down                                 |
-| `Enter`                      | pick and `cd` into the row                          |
-| `Esc`                        | cancel — *or* enter normal mode (if vim mode is on) |
-| `Ctrl+C`                     | exit picker                                         |
-| `Ctrl+R`                     | force rescan in the background                      |
+| Key                         | Action                                              |
+| --------------------------- | --------------------------------------------------- |
+| any printable character     | filter (instant)                                    |
+| `↑` `↓` / `Ctrl+P` `Ctrl+N` | move selection                                      |
+| `Ctrl+J` `Ctrl+K`           | move selection (vim flavour)                        |
+| `Ctrl+U` `Ctrl+D`           | page up / page down                                 |
+| `Enter`                     | pick and `cd` into the row                          |
+| `Esc`                       | cancel — _or_ enter normal mode (if vim mode is on) |
+| `Ctrl+C`                    | exit picker                                         |
+| `Ctrl+R`                    | force rescan in the background                      |
 
 ### Picker keys (vim normal mode, when `vim_mode = true`)
 
-| Group              | Keys                                                |
-| ------------------ | --------------------------------------------------- |
-| Cursor             | `h l 0 ^ $ w b e gg G`                              |
-| Char ops           | `x` (delete), `s` (substitute), `r<x>` (replace)    |
-| Line ops           | `dd cc S` (clear), `D` (= d$), `C` (= c$)           |
-| Operator + motion  | `dw db de d0 d^ d$`, `cw cb ce c0 c^ c$`            |
-| Mode entry         | `i a I A`                                           |
-| List nav           | `j k`, arrows, `Ctrl+J/K/N/P`, `Ctrl+U/F` (page)    |
-| List jump          | `gg` top, `G` bottom of visible filtered list       |
-| Exit               | `Ctrl+C`                                            |
+| Group             | Keys                                             |
+| ----------------- | ------------------------------------------------ |
+| Cursor            | `h l 0 ^ $ w b e gg G`                           |
+| Char ops          | `x` (delete), `s` (substitute), `r<x>` (replace) |
+| Line ops          | `dd cc S` (clear), `D` (= d$), `C` (= c$)        |
+| Operator + motion | `dw db de d0 d^ d$`, `cw cb ce c0 c^ c$`         |
+| Mode entry        | `i a I A`                                        |
+| List nav          | `j k`, arrows, `Ctrl+J/K/N/P`, `Ctrl+U/F` (page) |
+| List jump         | `gg` top, `G` bottom of visible filtered list    |
+| Exit              | `Ctrl+C`                                         |
 
 `gg`/`G` navigate the **list** (not the input cursor), since in a fuzzy picker the list is the primary surface. Use `0`/`$` for input motions.
 
@@ -166,11 +166,11 @@ prune = [
 vim_mode = false
 ```
 
-| Key        | Type          | Default     | Description                                                                                                                                                  |
-| ---------- | ------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Key        | Type          | Default     | Description                                                                                                                                                 |
+| ---------- | ------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `roots`    | list of paths | `~`         | Recursively scanned for git working trees. Leading `~` expands to `$HOME`. Non-existent roots are silently skipped, so listing several conventions is fine. |
-| `prune`    | list of names | (see above) | Directory base names to skip during the walk. Exact match — no `**` globs. `.git/` is always skipped automatically.                                          |
-| `vim_mode` | bool          | `false`     | When `true`, the search input becomes a vim-style modal editor. `Esc` enters normal mode and `Ctrl+C` is the only exit.                                      |
+| `prune`    | list of names | (see above) | Directory base names to skip during the walk. Exact match — no `**` globs. `.git/` is always skipped automatically.                                         |
+| `vim_mode` | bool          | `false`     | When `true`, the search input becomes a vim-style modal editor. `Esc` enters normal mode and `Ctrl+C` is the only exit.                                     |
 
 Add a root later with `op add /path/to/somewhere` (appended to your config), or edit the file directly with `op config edit`.
 
