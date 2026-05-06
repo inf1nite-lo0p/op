@@ -32,9 +32,21 @@ Set Padding    20
 # .demo/ tree and pre-warms the cache.
 
 Hide
+Type 'export HOME="$PWD/.demo/home"'
+Enter
 Type 'export XDG_CONFIG_HOME="$PWD/.demo/config"'
 Enter
 Type 'export XDG_CACHE_HOME="$PWD/.demo/cache"'
+Enter
+Type 'cd "$HOME"'
+Enter
+# A simple prompt that doesn't leak hostname/username. We can't
+# rely on PS1 escapes (\w etc.) inside vhs's bash — the prompt
+# expansion runs once per render and the GIF tooling doesn't pick
+# up the change cleanly. Using a plain literal prompt sidesteps it
+# entirely; the home-relative cwd is shown via an explicit echo
+# after the pick (see the bottom of the tape).
+Type "export PS1='$ '"
 Enter
 Type 'eval "$(op-bin shell-init bash)"'
 Enter
@@ -66,16 +78,16 @@ Sleep 350ms
 Down
 Sleep 600ms
 
-# ----- act 5: pick ------------------------------------------------
+# ----- act 5: pick + show we cd'd ----------------------------------
+#
+# After Enter the shell `cd`s into the picked worktree. We print a
+# home-relative cwd via parameter expansion so the GIF doesn't show
+# the recorder's absolute path layout.
 
 Enter
 Sleep 600ms
-
-# ----- act 6: show that we cd'd ----------------------------------
-
-Type "pwd"
+# `pwd | sed s/$HOME/~/` is just a portable way to print the
+# home-relative cwd without exposing the recorder's absolute path.
+Type 'pwd | sed "s|^$HOME|~|"'
 Enter
-Sleep 1.8s
-
-# fade
-Sleep 800ms
+Sleep 2.0s

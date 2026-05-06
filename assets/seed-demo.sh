@@ -6,24 +6,35 @@
 # a HEAD ref + a controlled mtime so the picker's "last touched"
 # column shows variety.
 #
-# Output: a self-contained directory tree plus an op config pointing
-# at it, ready to be picked up via XDG_{CONFIG,CACHE}_HOME env vars
-# without polluting the user's real ~/.config/op/config.toml.
+# Output: a self-contained directory tree under a *fake* $HOME so
+# the picker renders paths as a clean `~/code/acme/api` instead of
+# the absolute `/some/local/dir/.demo/projects/...` (which would
+# leak the recorder's real username + path layout into the GIF).
 #
 #   ./assets/seed-demo.sh [TARGET_DIR]
 #
-# TARGET_DIR defaults to ./.demo (gitignored). After this runs:
-#   XDG_CONFIG_HOME=$TARGET/config XDG_CACHE_HOME=$TARGET/cache op
-# scopes op entirely to the seeded projects.
+# TARGET_DIR defaults to ./.demo (gitignored). Layout:
+#
+#   $TARGET/home/code/acme/api/      ← fake $HOME's project tree
+#   $TARGET/home/personal/dotfiles/
+#   $TARGET/home/playground/...
+#   $TARGET/config/op/config.toml    ← XDG config (refers to ~/code, …)
+#   $TARGET/cache/op/                ← XDG cache
+#
+# Recording / running scoped to it:
+#   HOME=$TARGET/home \
+#   XDG_CONFIG_HOME=$TARGET/config \
+#   XDG_CACHE_HOME=$TARGET/cache \
+#   op
 
 set -euo pipefail
 
 TARGET="${1:-$PWD/.demo}"
-PROJECTS="$TARGET/projects"
+DEMO_HOME="$TARGET/home"
 
 # Reset.
 rm -rf "$TARGET"
-mkdir -p "$TARGET/config/op" "$TARGET/cache/op" "$PROJECTS"
+mkdir -p "$TARGET/config/op" "$TARGET/cache/op" "$DEMO_HOME"
 
 # Wall-clock in epoch seconds; we subtract offsets per repo to give
 # realistic recency.
@@ -53,19 +64,20 @@ offset_secs() {
   esac
 }
 
-# make_repo <path> <branch> <age>
+# make_repo <relative_path> <branch> <age>
+# Path is relative to the fake $HOME.
 make_repo() {
-  local path="$1" branch="$2" age="$3"
+  local rel="$1" branch="$2" age="$3"
+  local path="$DEMO_HOME/$rel"
   mkdir -p "$path/.git/worktrees"
   printf 'ref: refs/heads/%s\n' "$branch" >"$path/.git/HEAD"
   set_mtime "$path/.git/HEAD" $((NOW - $(offset_secs "$age")))
 }
 
-# make_worktree <main_repo> <wt_name> <branch> <age>
-# Mirrors the .claude/worktrees/<name>/ layout so worktrees show up
-# nested under their main, the same shape op was built around.
+# make_worktree <main_relative> <wt_name> <branch> <age>
+# Mirrors the .claude/worktrees/<name>/ layout.
 make_worktree() {
-  local main="$1" name="$2" branch="$3" age="$4"
+  local main="$DEMO_HOME/$1" name="$2" branch="$3" age="$4"
   local wt_dir="$main/.claude/worktrees/$name"
   local wt_gitdir="$main/.git/worktrees/$name"
   mkdir -p "$wt_dir" "$wt_gitdir"
@@ -77,48 +89,53 @@ make_worktree() {
 
 # ----- acme workspace ---------------------------------------------
 
-make_repo     "$PROJECTS/acme/api"           main "2 hours"
-make_worktree "$PROJECTS/acme/api"           feat-auth-jwt-rotation       feat-auth-jwt-rotation       "1 hour"
-make_worktree "$PROJECTS/acme/api"           bugfix-login-redirect-loop   bugfix-login-redirect-loop   "4 hours"
-make_worktree "$PROJECTS/acme/api"           feat-rate-limiter            feat-rate-limiter            "9 hours"
+make_repo     code/acme/api           main "2 hours"
+make_worktree code/acme/api  feat-auth-jwt-rotation       feat-auth-jwt-rotation       "1 hour"
+make_worktree code/acme/api  bugfix-login-redirect-loop   bugfix-login-redirect-loop   "4 hours"
+make_worktree code/acme/api  feat-rate-limiter            feat-rate-limiter            "9 hours"
 
-make_repo     "$PROJECTS/acme/api-gateway"   main "1 day"
-make_repo     "$PROJECTS/acme/api-docs"      main "3 days"
-make_repo     "$PROJECTS/acme/web"           main "6 hours"
-make_worktree "$PROJECTS/acme/web"           feat-checkout-redesign       feat-checkout-redesign       "5 hours"
+make_repo     code/acme/api-gateway   main "1 day"
+make_repo     code/acme/api-docs      main "3 days"
+make_repo     code/acme/web           main "6 hours"
+make_worktree code/acme/web  feat-checkout-redesign       feat-checkout-redesign       "5 hours"
 
-make_repo     "$PROJECTS/acme/worker"        main          "2 days"
-make_repo     "$PROJECTS/acme/shared-types"  main          "5 days"
-make_repo     "$PROJECTS/acme/infra"         main          "1 week"
+make_repo     code/acme/worker        main "2 days"
+make_repo     code/acme/shared-types  main "5 days"
+make_repo     code/acme/infra         main "1 week"
 
 # ----- personal stuff ---------------------------------------------
 
-make_repo     "$PROJECTS/personal/dotfiles"  main          "2 weeks"
-make_repo     "$PROJECTS/personal/blog"      main          "3 days"
-make_repo     "$PROJECTS/personal/notes"     main          "5 days"
+make_repo     personal/dotfiles       main "2 weeks"
+make_repo     personal/blog           main "3 days"
+make_repo     personal/notes          main "5 days"
 
 # ----- playground -------------------------------------------------
 
-make_repo     "$PROJECTS/playground/rust-async-channels"  main "1 week"
-make_repo     "$PROJECTS/playground/tinygo-experiment"    main "2 weeks"
-make_repo     "$PROJECTS/playground/htmx-todo"            main "10 days"
+make_repo     playground/rust-async-channels  main "1 week"
+make_repo     playground/tinygo-experiment    main "2 weeks"
+make_repo     playground/htmx-todo            main "10 days"
 
 # ----- op config (TOML) -------------------------------------------
+#
+# Roots are written as ~-relative so they look like a real user's
+# config in `op config edit`. The fake-HOME setup at runtime makes
+# them resolve to the seeded tree.
 
-cat >"$TARGET/config/op/config.toml" <<TOML
-roots = ["$PROJECTS"]
+cat >"$TARGET/config/op/config.toml" <<'TOML'
+roots = ["~/code", "~/personal", "~/playground"]
 prune = ["node_modules", "vendor", "target", "dist", "build"]
 vim_mode = false
 TOML
 
 # ----- pre-warm cache so the demo opens instantly ------------------
 #
-# Walks the seeded tree once via the same scanner the picker uses,
-# so the first `op` keystroke in the GIF lands on the picker view
-# instead of the "first-time scan" banner.
+# Important: we have to set HOME for this so the cached paths are
+# under the fake home and prettyPath collapses them to ~ at render
+# time in the GIF.
 
 op_bin="${OP_BIN:-./bin/op-bin}"
 if [ -x "$op_bin" ]; then
+  HOME="$DEMO_HOME" \
   XDG_CONFIG_HOME="$TARGET/config" \
   XDG_CACHE_HOME="$TARGET/cache" \
     "$op_bin" refresh >/dev/null 2>&1 || true
@@ -126,15 +143,15 @@ fi
 
 # ----- summary ----------------------------------------------------
 
-count=$(find "$PROJECTS" -type d -name '.git' | wc -l | tr -d ' ')
-wt=$(find "$PROJECTS" -type f -name '.git' | wc -l | tr -d ' ')
+count=$(find "$DEMO_HOME" -type d -name '.git' | wc -l | tr -d ' ')
+wt=$(find "$DEMO_HOME" -type f -name '.git' | wc -l | tr -d ' ')
 
 cat <<EOF
 ✓ Demo projects ready
-  location:    $PROJECTS
+  fake home:   $DEMO_HOME
   main repos:  $count
   worktrees:   $wt
 
   Try it:
-    XDG_CONFIG_HOME=$TARGET/config XDG_CACHE_HOME=$TARGET/cache $op_bin
+    HOME=$DEMO_HOME XDG_CONFIG_HOME=$TARGET/config XDG_CACHE_HOME=$TARGET/cache $op_bin
 EOF
