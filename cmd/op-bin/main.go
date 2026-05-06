@@ -112,7 +112,7 @@ func runPick(ctx context.Context) error {
 	if !ok {
 		fmt.Fprintln(os.Stderr, "op: first run — scanning…")
 		t := time.Now()
-		projects, scanErr := scanFromConfig(ctx, cfg)
+		projects, scanErr := scanFromConfig(ctx, cfg, nil)
 		if scanErr != nil {
 			return scanErr
 		}
@@ -130,8 +130,8 @@ func runPick(ctx context.Context) error {
 	choice, err := tui.Run(ctx, tui.Options{
 		Initial: cached,
 		VimMode: cfg.VimMode,
-		Rescan: func(ctx context.Context) ([]cache.Entry, error) {
-			projects, err := scanFromConfig(ctx, cfg)
+		Rescan: func(ctx context.Context, onFound func()) ([]cache.Entry, error) {
+			projects, err := scanFromConfig(ctx, cfg, onFound)
 			if err != nil {
 				return nil, err
 			}
@@ -162,7 +162,7 @@ func runRefresh(ctx context.Context) error {
 		return err
 	}
 	t := time.Now()
-	projects, err := scanFromConfig(ctx, cfg)
+	projects, err := scanFromConfig(ctx, cfg, nil)
 	if err != nil {
 		return err
 	}
@@ -482,8 +482,10 @@ func ensureConfigured(ctx context.Context) error {
 
 // scanFromConfig is the shared "config → scanner.Options → run scan"
 // glue. It belongs in main rather than scanner because it expands
-// ~ via config and is the only adapter we need.
-func scanFromConfig(ctx context.Context, cfg config.Config) ([]scanner.Project, error) {
+// ~ via config and is the only adapter we need. onFound may be nil
+// when the caller doesn't care about progress (e.g. `op refresh`
+// from the CLI, where we just print the final count to stderr).
+func scanFromConfig(ctx context.Context, cfg config.Config, onFound func()) ([]scanner.Project, error) {
 	roots, err := cfg.ExpandRoots()
 	if err != nil {
 		return nil, err
@@ -495,6 +497,7 @@ func scanFromConfig(ctx context.Context, cfg config.Config) ([]scanner.Project, 
 		Roots:    roots,
 		Prune:    scanner.PruneSet(cfg.Prune),
 		MaxDepth: 8,
+		OnFound:  onFound,
 	})
 }
 

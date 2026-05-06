@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 )
 
@@ -166,6 +167,35 @@ func TestScanFindsWorktreesNestedInsideMainRepo(t *testing.T) {
 	}
 	if !sawWT {
 		t.Fatal("expected a worktree row")
+	}
+}
+
+func TestScanOnFoundCallbackFiresOncePerProject(t *testing.T) {
+	// The picker uses OnFound to drive its live "scanning… N found"
+	// counter. The callback must fire exactly once for every project
+	// that ends up in the result set, no more and no less.
+	root := t.TempDir()
+	for _, name := range []string{"alpha", "beta", "gamma", "delta"} {
+		dir := filepath.Join(root, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		makeMain(t, dir, "main")
+	}
+
+	var found atomic.Int64
+	got, err := Scan(context.Background(), Options{
+		Roots:   []string{root},
+		OnFound: func() { found.Add(1) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int(found.Load()) != len(got) {
+		t.Fatalf("OnFound fired %d times, want %d (= len(results))", found.Load(), len(got))
+	}
+	if len(got) != 4 {
+		t.Fatalf("got %d results, want 4", len(got))
 	}
 }
 

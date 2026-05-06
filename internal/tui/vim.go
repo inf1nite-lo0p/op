@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"time"
-
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -55,9 +53,7 @@ func (m model) updateInsertMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+r":
 		if !m.rescanning {
 			m.rescanning = true
-			m.notice = "rescanning…"
-			m.noticeAt = time.Now()
-			return m, m.startRescan()
+			return m, m.beginRescan()
 		}
 		return m, nil
 	}
@@ -120,9 +116,7 @@ func (m model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+r":
 		if !m.rescanning {
 			m.rescanning = true
-			m.notice = "rescanning…"
-			m.noticeAt = time.Now()
-			return m, m.startRescan()
+			return m, m.beginRescan()
 		}
 		return m, nil
 	case "ctrl+u":

@@ -46,6 +46,12 @@ type Options struct {
 	// Workers is the number of inspection goroutines. <=0 picks a
 	// reasonable default based on GOMAXPROCS.
 	Workers int
+
+	// OnFound is called once per project successfully classified.
+	// The callback runs on a worker goroutine, so it must be safe
+	// for concurrent invocation (typically just an atomic counter
+	// increment for progress display).
+	OnFound func()
 }
 
 // PruneSet builds the set used in Options from a slice — convenience
@@ -86,6 +92,9 @@ func Scan(ctx context.Context, opts Options) ([]Project, error) {
 				info, err := gitmeta.Inspect(dir)
 				if err != nil || info.Kind == gitmeta.KindNone {
 					continue
+				}
+				if opts.OnFound != nil {
+					opts.OnFound()
 				}
 				results <- info
 			}

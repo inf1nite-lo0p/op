@@ -20,9 +20,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -37,8 +39,11 @@ import (
 var ErrCancelled = errors.New("tui: cancelled")
 
 // RescanFn runs a fresh scan and returns the resulting cache entries.
-// It must respect ctx — Run cancels it on quit.
-type RescanFn func(ctx context.Context) ([]cache.Entry, error)
+// It must respect ctx — Run cancels it on quit. onFound is called by
+// the scanner once per project as it's discovered, on a worker
+// goroutine; the callback is what drives the picker's live progress
+// counter. It can be nil for callers that don't care about progress.
+type RescanFn func(ctx context.Context, onFound func()) ([]cache.Entry, error)
 
 // Options configures Run.
 type Options struct {
@@ -119,8 +124,9 @@ type model struct {
 	entries []cache.Entry
 	matched []int
 
-	list  list.Model
-	input textinput.Model
+	list    list.Model
+	input   textinput.Model
+	spinner spinner.Model
 
 	vimMode        bool // is modal editing enabled at all?
 	mode           editorMode
@@ -129,6 +135,8 @@ type model struct {
 
 	width, height int
 	rescanning    bool
+	rescanFound   *atomic.Int64 // live counter the scanner increments
+	rescanShown   int           // most-recently displayed value of the above
 	rescanErr     error
 	notice        string
 	noticeAt      time.Time
@@ -165,7 +173,11 @@ func newModel(ctx context.Context, opts Options) model {
 	l.SetShowPagination(true)
 	l.DisableQuitKeybindings()
 
+	sp := spinner.New(spinner.WithSpinner(spinner.Dot))
+	sp.Style = noticeStyle
+
 	m := model{
+		spinner: sp,
 		ctx:     ctx,
 		rescan:  opts.Rescan,
 		entries: opts.Initial,
@@ -181,13 +193,54 @@ func (m model) Init() tea.Cmd {
 	return m.startRescan()
 }
 
+// progressTickMsg drives the live "scanning… N found" counter. We
+// poll the atomic counter on a timer rather than rendering on every
+// callback, since a scan can find hundreds of projects per millisecond
+// — flushing a render that often would hammer the renderer for no
+// visible benefit.
+type progressTickMsg struct{}
+
+func progressTick() tea.Cmd {
+	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg {
+		return progressTickMsg{}
+	})
+}
+
+// beginRescan returns the batch of commands to fire when a rescan
+// kicks off: the rescan itself, the spinner animation, and the
+// progress poll. Callers should set m.rescanning + reset the counter
+// before invoking.
+func (m *model) beginRescan() tea.Cmd {
+	if m.rescan == nil {
+		return nil
+	}
+	if m.rescanFound == nil {
+		m.rescanFound = &atomic.Int64{}
+	}
+	m.rescanFound.Store(0)
+	m.rescanShown = 0
+
+	rescan, ctx := m.rescan, m.ctx
+	counter := m.rescanFound
+	scanCmd := func() tea.Msg {
+		entries, err := rescan(ctx, func() { counter.Add(1) })
+		return rescanDoneMsg{entries: entries, err: err}
+	}
+	return tea.Batch(scanCmd, m.spinner.Tick, progressTick())
+}
+
+// startRescan is the no-progress path used by Init() — the very first
+// rescan happens before any window-size message has arrived, so we
+// fire it without animations and rely on the cached rows being
+// already on screen. Any user-triggered rescan (Ctrl+R) goes through
+// beginRescan instead.
 func (m model) startRescan() tea.Cmd {
 	if m.rescan == nil {
 		return nil
 	}
 	rescan, ctx := m.rescan, m.ctx
 	return func() tea.Msg {
-		entries, err := rescan(ctx)
+		entries, err := rescan(ctx, nil)
 		return rescanDoneMsg{entries: entries, err: err}
 	}
 }
@@ -240,6 +293,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.notice = fmt.Sprintf("rescanned (%d projects)", len(m.entries))
 		m.noticeAt = time.Now()
 		return m, nil
+
+	case progressTickMsg:
+		// Stop polling once the scan finishes; the rescanDoneMsg
+		// arrived already and re-armed nothing.
+		if !m.rescanning {
+			return m, nil
+		}
+		if m.rescanFound != nil {
+			m.rescanShown = int(m.rescanFound.Load())
+		}
+		return m, progressTick()
+
+	case spinner.TickMsg:
+		// Spinner ticks itself; just forward and stop animating once
+		// the scan is done.
+		if !m.rescanning {
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	}
 
 	// Anything else (non-key messages) — pass to textinput in case
@@ -372,7 +446,15 @@ func (m model) renderFooter() string {
 	}
 	out += keys
 	if m.rescanning {
-		out += dimStyle.Render(" · scanning…")
+		// Spinner + live "found N" counter so the user sees actual
+		// progress, not just a static "scanning…" label.
+		out += dimStyle.Render(" · ")
+		out += m.spinner.View()
+		out += " "
+		out += noticeStyle.Render("scanning")
+		if m.rescanShown > 0 {
+			out += dimStyle.Render(fmt.Sprintf(" · %d found", m.rescanShown))
+		}
 	}
 	if m.notice != "" && time.Since(m.noticeAt) < 5*time.Second {
 		sep := dimStyle.Render(" · ")
