@@ -215,6 +215,97 @@ op config edit                  # full editor dive ($VISUAL/$EDITOR/vi)
 
 ---
 
+## Scheduled refresh (optional)
+
+Every launch already kicks off a rescan in the background — the cache catches up on its own as you use op. If you want the **first** render of every session to be fresh too, schedule `op-bin refresh` to run on an interval. Pick whichever fits your system.
+
+> Schedule `op-bin refresh`, not `op refresh` — schedulers don't source your shell rc, so the `op` shell function isn't defined in their environment. Find the absolute path with `command -v op-bin`.
+
+### systemd user timer (Linux, WSL)
+
+Create the unit and timer under `~/.config/systemd/user/`:
+
+`op-refresh.service`:
+
+```ini
+[Unit]
+Description=Refresh op project cache
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/op-bin refresh
+```
+
+`op-refresh.timer`:
+
+```ini
+[Unit]
+Description=Refresh op project cache every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable and start:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now op-refresh.timer
+systemctl --user list-timers op-refresh.timer    # next trigger
+journalctl --user -u op-refresh.service -f       # live logs
+```
+
+`Persistent=true` makes the timer catch up after a missed window (laptop sleep, WSL pause). To keep it ticking with no shell sessions open: `sudo loginctl enable-linger $USER`.
+
+### launchd (macOS)
+
+`~/Library/LaunchAgents/dev.op.refresh.plist` — launchd needs absolute paths, so replace `/Users/YOU` with your home:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>           <string>dev.op.refresh</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/YOU/.local/bin/op-bin</string>
+        <string>refresh</string>
+    </array>
+    <key>StartInterval</key>   <integer>900</integer>
+    <key>RunAtLoad</key>       <true/>
+</dict>
+</plist>
+```
+
+Load it:
+
+```sh
+launchctl load -w ~/Library/LaunchAgents/dev.op.refresh.plist
+launchctl list | grep dev.op.refresh
+```
+
+### cron (any Unix)
+
+```sh
+crontab -e
+```
+
+Add — note the absolute path, since cron's `PATH` doesn't include `~/.local/bin`:
+
+```cron
+*/15 * * * * /home/you/.local/bin/op-bin refresh >/dev/null 2>&1
+```
+
+Verify with `op doctor` — the cache mtime should update on the next interval.
+
+---
+
 ## How it works
 
 ```
